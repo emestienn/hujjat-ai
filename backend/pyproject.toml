@@ -1,0 +1,17 @@
+[project]
+name = "hujjat-ai"
+version = "1.0.0"
+description = "Chat with your documents in Uzbek, Russian or English, with page-level citations."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008", "E501"]  # Depends() defaults are idiomatic; the formatter handles line length

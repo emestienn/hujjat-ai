@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --color-ink-950: #08090d;
+  --color-ink-900: #0d0f15;
+  --color-ink-850: #12151d;
+  --color-ink-800: #181c26;
+  --color-ink-700: #232836;
+  --color-ink-600: #323849;
+
+  --color-clay: #e8875f;
+  --color-iris: #8e75b2;
+
+  --animate-fade-up: fade-up 0.35s ease-out both;
+  --animate-blink: blink 1s steps(2, start) infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes blink {
+    to { visibility: hidden; }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-950 text-zinc-200 antialiased;
+  font-family: var(--font-sans);
+}
+
+.brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-clay), var(--color-iris));
+}
+
+.brand-text {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #f0a07f, #b39ddb);
+}
+
+/* Soft glow behind the empty state */
+.aurora {
+  background:
+    radial-gradient(40% 35% at 30% 20%, rgb(232 135 95 / 0.18), transparent 70%),
+    radial-gradient(40% 35% at 70% 30%, rgb(142 117 178 / 0.2), transparent 70%);
+}
+
+/* Thin, quiet scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+
+mark {
+  @apply rounded-sm bg-clay/25 px-0.5 text-zinc-50;
+}
