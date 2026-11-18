@@ -1,8 +1,12 @@
 import clsx from 'clsx'
 import { AlertTriangle, Check, Copy, FileText } from 'lucide-react'
-import { useState } from 'react'
+import { isValidElement, useState, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import type { Source } from '../api'
+import { Mermaid } from './Mermaid'
 
 export interface ChatMessage {
   id: string
@@ -52,6 +56,8 @@ export function Message({ message, onOpenSource }: Props) {
         ) : (
           <div className="prose prose-invert max-w-none text-[15px] prose-p:leading-relaxed prose-li:my-0.5 prose-ul:my-2">
             <Markdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
               components={{
                 a: ({ href, children }) => {
                   const match = href?.match(/^#cite-(\d+)$/)
@@ -66,6 +72,17 @@ export function Message({ message, onOpenSource }: Props) {
                       {source.index}
                     </button>
                   )
+                },
+                // Fenced ```mermaid blocks become flowcharts/trees/graphs/charts instead of raw text.
+                pre: ({ children }) => {
+                  const code = Array.isArray(children) ? children[0] : children
+                  if (
+                    isValidElement<{ className?: string; children?: ReactNode }>(code) &&
+                    /(?:^|\s)language-mermaid(?:\s|$)/.test(code.props.className ?? '')
+                  ) {
+                    return <Mermaid code={String(code.props.children).replace(/\n$/, '')} ready={!message.streaming} />
+                  }
+                  return <pre>{children}</pre>
                 },
               }}
             >

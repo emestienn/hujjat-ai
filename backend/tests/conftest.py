@@ -1,7 +1,10 @@
+import io
 from pathlib import Path
 
+import pymupdf
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw, ImageFont
 
 from app.config import Settings
 from app.main import create_app
@@ -30,6 +33,21 @@ def client(settings):
 @pytest.fixture
 def sample_pdf() -> bytes:
     return SAMPLE_PDF.read_bytes()
+
+
+@pytest.fixture
+def scanned_pdf() -> bytes:
+    """A PDF with no text layer at all: a photo-like page image, same as a scanned document."""
+    image = Image.new("RGB", (900, 200), "white")
+    draw = ImageDraw.Draw(image)
+    draw.text((30, 60), "Scanned handbook page, no embedded text.", fill="black", font=ImageFont.load_default(size=32))
+    png = io.BytesIO()
+    image.save(png, format="PNG")
+
+    doc = pymupdf.open()
+    page = doc.new_page(width=900, height=200)
+    page.insert_image(page.rect, stream=png.getvalue())
+    return doc.tobytes()
 
 
 @pytest.fixture

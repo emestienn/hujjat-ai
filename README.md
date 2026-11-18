@@ -12,7 +12,7 @@
 ![Gemini](https://img.shields.io/badge/Gemini-8E75B2?logo=googlegemini&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-27%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-29%20passing-22c55e)
 
 <img src="docs/chat.png" alt="Hujjat AI chat with cited answers" width="100%" />
 
@@ -28,11 +28,18 @@ language you asked in, and shows **which page** each fact came from, so you can 
 ## Features
 
 - **Upload PDF, DOCX, TXT or Markdown**: text is extracted page by page and split into overlapping chunks.
+- **OCR for scanned PDFs**: pages with no embedded text are rasterised and read with Tesseract (English,
+  Russian and Uzbek), so photographed or scanned documents work too.
 - **Hybrid search (RAG)**: BM25 keyword search plus Gemini embeddings, merged with Reciprocal Rank Fusion.
 - **Claude or Gemini answers**, streamed token by token over Server-Sent Events.
 - **Citations you can click**: `[1]` chips open the original passage with your search words highlighted.
+- **Renders tables, formulas and diagrams**: Markdown tables, LaTeX math, and Mermaid flowcharts/trees/
+  graphs/charts in answers are rendered, not left as raw text.
 - **Multilingual**: ask in Uzbek, Russian or English. Uzbek apostrophes (oʻ, gʻ) are normalised for search.
 - **Scope control**: tick documents in the sidebar to search only those files.
+- **Conversations survive a refresh**: the current chat is kept in the browser (not sent anywhere else)
+  and restored on reload; "New chat" clears it.
+- **Export**: download a full conversation, with its citations, as a Markdown file.
 - **Works without an API key**: demo mode quotes the most relevant sentences, so anyone can try it.
 - **Production-ready basics**: typed REST API with OpenAPI docs, 27 tests, CI, Docker, `.env` config.
 
@@ -66,6 +73,10 @@ is the single place to swap in pgvector or Chroma later.
 ## Quick start
 
 ### 1. Backend (Python 3.11+)
+
+OCR for scanned PDFs needs the Tesseract engine installed separately (it's not a Python package):
+macOS `brew install tesseract tesseract-lang`, Debian/Ubuntu `apt-get install tesseract-ocr tesseract-ocr-rus
+tesseract-ocr-uzb`. Without it, scanned PDFs just fall back to the old "no text found" error.
 
 ```bash
 cd backend
@@ -149,12 +160,12 @@ samples/             Fictional bilingual student handbook used for the demo
 cd backend && pytest && ruff check .
 ```
 
-The tests cover parsing, chunking, Uzbek tokenisation, keyword and semantic retrieval, document filtering,
-every API endpoint, the SSE stream, and the exact request sent to Claude and Gemini (using stub clients).
+The tests cover parsing, chunking, OCR fallback for scanned PDFs, Uzbek tokenisation, keyword and semantic
+retrieval, document filtering, every API endpoint, the SSE stream, and the exact request sent to Claude
+and Gemini (using stub clients).
 
 ## Roadmap
 
-- OCR for scanned PDFs (Tesseract with Uzbek language data)
 - User accounts and private document collections
 - Answer evaluation set to measure retrieval quality across languages
 

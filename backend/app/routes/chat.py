@@ -2,7 +2,7 @@ import json
 import logging
 from collections.abc import Iterator
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from ..deps import get_services
@@ -25,7 +25,11 @@ def _answer_tokens(svc: Services, req: ChatRequest, sources) -> Iterator[str]:
 def chat(req: ChatRequest, svc: Services = Depends(get_services)):
     """Ask a question and get the full answer with its sources in one response."""
     sources = svc.find_sources(req.question, req.document_ids)
-    answer = "".join(_answer_tokens(svc, req, sources)).strip()
+    try:
+        answer = "".join(_answer_tokens(svc, req, sources)).strip()
+    except Exception as e:  # bad key, quota, or a transient outage at the provider
+        log.exception("LLM provider failed")
+        raise HTTPException(502, f"The AI provider returned an error: {e}") from e
     return ChatResponse(answer=answer, sources=sources, provider=svc.provider.name)
 
 

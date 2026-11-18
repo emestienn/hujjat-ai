@@ -1,4 +1,4 @@
-import { Menu, RotateCcw } from 'lucide-react'
+import { Download, Menu, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, streamChat, type DocumentInfo, type Health, type Source } from './api'
 import { Composer } from './components/Composer'
@@ -9,13 +9,44 @@ import { Sidebar } from './components/Sidebar'
 import { SourcePanel } from './components/SourcePanel'
 
 const uid = () => Math.random().toString(36).slice(2)
+const CHAT_STORAGE_KEY = 'hujjat-ai:chat'
+
+function loadStoredMessages(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY)
+    return raw ? (JSON.parse(raw) as ChatMessage[]) : []
+  } catch {
+    return []
+  }
+}
+
+function downloadConversation(messages: ChatMessage[]) {
+  const lines = [`# Hujjat AI conversation`, `_Exported ${new Date().toLocaleString()}_`, '']
+  for (const m of messages) {
+    if (m.role === 'user') {
+      lines.push(`**You:** ${m.content}`, '')
+      continue
+    }
+    lines.push(`**Assistant:** ${m.content || '_(no answer)_'}`, '')
+    if (m.sources?.length) {
+      lines.push(...m.sources.map((s) => `- [${s.index}] ${s.filename}, page ${s.page}`), '')
+    }
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `hujjat-ai-chat-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
   const [documents, setDocuments] = useState<DocumentInfo[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [uploading, setUploading] = useState<string[]>([])
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStoredMessages)
   const [busy, setBusy] = useState(false)
   const [openSource, setOpenSource] = useState<{ source: Source; query: string } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -44,6 +75,17 @@ export default function App() {
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages])
+
+  useEffect(() => {
+    try {
+      // A page reload drops the in-flight stream, so freeze any message still "streaming"
+      // rather than storing a spinner that reload would otherwise leave stuck forever.
+      const toStore = messages.map((m) => (m.streaming ? { ...m, streaming: false } : m))
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toStore))
+    } catch {
+      // Private browsing / full storage: chat just won't survive a refresh.
+    }
   }, [messages])
 
   const upload = async (files: File[]) => {
@@ -182,17 +224,26 @@ export default function App() {
             </p>
           </div>
           {messages.length > 0 && (
-            <button
-              onClick={() => {
-                abort.current?.abort()
-                setMessages([])
-                setOpenSource(null)
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
-            >
-              <RotateCcw className="size-4" />
-              New chat
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => downloadConversation(messages)}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+              >
+                <Download className="size-4" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+              <button
+                onClick={() => {
+                  abort.current?.abort()
+                  setMessages([])
+                  setOpenSource(null)
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+              >
+                <RotateCcw className="size-4" />
+                New chat
+              </button>
+            </div>
           )}
         </header>
 

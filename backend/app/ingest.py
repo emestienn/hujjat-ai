@@ -1,13 +1,25 @@
 """Turn uploaded files into page-aware text chunks."""
 
 import io
+import logging
 import re
 from dataclasses import dataclass
 
+import pymupdf  # used only to rasterise scanned pages for OCR
+import pytesseract
 from docx import Document as DocxDocument
+from PIL import Image
 from pypdf import PdfReader
 
+log = logging.getLogger(__name__)
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
+
+# A page with less text than this is assumed to be a scanned image and sent to OCR.
+OCR_MIN_CHARS = 20
+# Tried in order; Tesseract raises if a language's trained data isn't installed,
+# so we fall back to whichever subset is actually available.
+OCR_LANGUAGES = ("eng+rus+uzb", "eng+rus", "eng")
 
 
 class UnsupportedFileError(ValueError):
@@ -37,6 +49,29 @@ def _join_pdf_lines(text: str) -> str:
     return re.sub(r"(?<![.:!?\n])\n(?!\n|\d+[.)]\s)", " ", text)
 
 
+def _ocr_page(pdf_bytes: bytes, page_index: int) -> str:
+    """Rasterise one PDF page and OCR it. Returns "" if OCR isn't available or fails,
+    so a missing Tesseract install degrades to the old "no text found" behaviour
+    instead of crashing the upload."""
+    try:
+        with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
+            pix = doc[page_index].get_pixmap(matrix=pymupdf.Matrix(2, 2))  # 2x zoom helps OCR accuracy
+            image = Image.open(io.BytesIO(pix.tobytes("png")))
+    except Exception:
+        log.warning("Could not rasterise page %d for OCR", page_index + 1, exc_info=True)
+        return ""
+
+    for lang in OCR_LANGUAGES:
+        try:
+            return pytesseract.image_to_string(image, lang=lang)
+        except pytesseract.TesseractError:
+            continue  # that language pack isn't installed, try a smaller set
+        except Exception:
+            log.warning("Tesseract is not available; skipping OCR", exc_info=True)
+            break
+    return ""
+
+
 def parse_file(filename: str, data: bytes) -> ParsedDocument:
     ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext not in SUPPORTED_EXTENSIONS:
@@ -46,7 +81,12 @@ def parse_file(filename: str, data: bytes) -> ParsedDocument:
 
     if ext == ".pdf":
         reader = PdfReader(io.BytesIO(data))
-        pages = [_join_pdf_lines(_clean(p.extract_text() or "")) for p in reader.pages]
+        pages = []
+        for i, p in enumerate(reader.pages):
+            text = _clean(p.extract_text() or "")
+            if len(text) < OCR_MIN_CHARS:
+                text = _clean(_ocr_page(data, i)) or text
+            pages.append(_join_pdf_lines(text))
     elif ext == ".docx":
         doc = DocxDocument(io.BytesIO(data))
         text = "\n".join(p.text for p in doc.paragraphs)
@@ -55,7 +95,9 @@ def parse_file(filename: str, data: bytes) -> ParsedDocument:
         pages = [_clean(data.decode("utf-8", errors="replace"))]
 
     if not any(p.strip() for p in pages):
-        raise EmptyDocumentError("No text found in this file. If it is a scanned PDF, run OCR on it first.")
+        raise EmptyDocumentError(
+            "No text found in this file, even after trying OCR. The scan may be too low-quality to read."
+        )
     return ParsedDocument(pages=pages)
 
 

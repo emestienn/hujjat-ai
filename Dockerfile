@@ -11,6 +11,13 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DATA_DIR=/data
 WORKDIR /app
 
+# Tesseract powers OCR for scanned PDFs. uzb/uzb_cyrl aren't on every mirror,
+# so they're best-effort: OCR still falls back to eng+rus if they're missing.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-rus \
+    && (apt-get install -y --no-install-recommends tesseract-ocr-uzb tesseract-ocr-uzb-cyrl || true) \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

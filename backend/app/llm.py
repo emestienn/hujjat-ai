@@ -22,6 +22,12 @@ Rules:
 3. Answer in the same language as the user's question (Uzbek, Russian or English),
    even if the sources are in a different language.
 4. Be concise: a short direct answer first, then details or a bulleted list if useful.
+5. Use Markdown tables for tabular data, and LaTeX ($...$ or $$...$$) for formulas.
+6. When a structure, process, hierarchy or relationship is described in the sources and a diagram
+   would make it clearer (trees, flowcharts, org charts, graphs, simple bar/line/pie charts),
+   draw one as a fenced ```mermaid code block (e.g. flowchart TD, graph LR, classDiagram, pie,
+   xychart-beta). Still cite the sources the diagram is based on. Don't force a diagram where
+   plain text already answers the question well.
 """
 
 NO_SOURCES_ANSWER = {

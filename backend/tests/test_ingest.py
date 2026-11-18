@@ -13,6 +13,12 @@ def test_parse_pdf_keeps_pages(sample_pdf):
     assert "Stipendiya" in parsed.pages[2]
 
 
+def test_parse_scanned_pdf_falls_back_to_ocr(scanned_pdf):
+    parsed = parse_file("scan.pdf", scanned_pdf)
+    assert len(parsed.pages) == 1
+    assert "scanned handbook page" in parsed.pages[0].lower()
+
+
 def test_parse_docx():
     doc = Document()
     doc.add_paragraph("Birinchi paragraf.")

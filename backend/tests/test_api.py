@@ -57,6 +57,20 @@ def test_chat_validation(client):
     assert client.post("/api/chat", json={"question": ""}).status_code == 422
 
 
+def test_chat_reports_provider_errors(client, uploaded):
+    def boom(question, sources, history):
+        def gen():
+            raise RuntimeError("quota exceeded")
+            yield  # makes this a generator, matching Provider.stream's contract
+
+        return gen()
+
+    client.app.state.services.provider.stream = boom
+    r = client.post("/api/chat", json={"question": "What is the retake fee for a failed exam?"})
+    assert r.status_code == 502
+    assert "quota exceeded" in r.json()["detail"]
+
+
 def test_stream_sends_sources_tokens_done(client, uploaded):
     with client.stream(
         "POST", "/api/chat/stream", json={"question": "When is the first instalment due?"}
